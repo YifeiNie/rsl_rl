@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from itertools import chain
 
-from rsl_rl.modules import ActorCritic
+from rsl_rl.modules import ActorCritic, ActorCriticCustom
 from rsl_rl.modules.rnd import RandomNetworkDistillation
 from rsl_rl.storage import RolloutStorage
 from rsl_rl.utils import string_to_callable
@@ -19,7 +19,7 @@ from rsl_rl.utils import string_to_callable
 class PPO:
     """Proximal Policy Optimization algorithm (https://arxiv.org/abs/1707.06347)."""
 
-    policy: ActorCritic
+    policy: ActorCritic | ActorCriticCustom
     """The actor critic module."""
 
     def __init__(
@@ -215,7 +215,7 @@ class PPO:
             num_aug = 1
             # original batch size
             # we assume policy group is always there and needs augmentation
-            original_batch_size = obs_batch["policy"].shape[0]
+            original_batch_size = list(obs_batch.values())[0].shape[0]
 
             # check if we should normalize advantages per mini batch
             if self.normalize_advantage_per_mini_batch:
@@ -234,7 +234,7 @@ class PPO:
                 )
                 # compute number of augmentations per sample
                 # we assume policy group is always there and needs augmentation
-                num_aug = int(obs_batch["policy"].shape[0] / original_batch_size)
+                num_aug = int(list(obs_batch.values())[0].shape[0] / original_batch_size)
                 # repeat the rest of the batch
                 # -- actor
                 old_actions_log_prob_batch = old_actions_log_prob_batch.repeat(num_aug, 1)

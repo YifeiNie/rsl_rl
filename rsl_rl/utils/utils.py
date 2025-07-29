@@ -76,7 +76,7 @@ def resolve_optimizer(optimizer_name: str) -> torch.optim.Optimizer:
 
 
 def split_and_pad_trajectories(
-    tensor: torch.Tensor | TensorDict, dones: torch.Tensor
+    tensor: torch.Tensor | TensorDict, dones: torch.Tensor, values: torch.Tensor, returns: torch.Tensor
 ) -> tuple[torch.Tensor | TensorDict, torch.Tensor]:
     """Splits trajectories at done indices. Then concatenates them and pads with zeros up to the length of the longest
     trajectory. Returns masks corresponding to valid parts of the trajectories.
@@ -126,9 +126,22 @@ def split_and_pad_trajectories(
         padded_trajectories = torch.nn.utils.rnn.pad_sequence(trajectories)
         # remove the added tensor
         padded_trajectories = padded_trajectories[:, :-1]
+
+    # create splited values
+    v = torch.split(values.transpose(1, 0).flatten(0, 1), trajectory_lengths_list)
+    v = v + (torch.zeros(values.shape[0], *values.shape[2:], device=values.device),)
+    padded_values = torch.nn.utils.rnn.pad_sequence(v)
+    padded_values = padded_values[:, :-1]
+
+    # create splited returns
+    ret = torch.split(returns.transpose(1, 0).flatten(0, 1), trajectory_lengths_list)
+    ret = ret + (torch.zeros(returns.shape[0], *returns.shape[2:], device=returns.device),)
+    padded_returns = torch.nn.utils.rnn.pad_sequence(ret)
+    padded_returns = padded_returns[:, :-1]
+
     # create masks for the valid parts of the trajectories
     trajectory_masks = trajectory_lengths > torch.arange(0, tensor.shape[0], device=tensor.device).unsqueeze(1)
-    return padded_trajectories, trajectory_masks
+    return padded_trajectories, trajectory_masks, padded_values, padded_returns
 
 
 def unpad_trajectories(trajectories, masks):

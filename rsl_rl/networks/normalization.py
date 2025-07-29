@@ -72,6 +72,51 @@ class EmpiricalNormalization(nn.Module):
         return y * (self._std + self.eps) + self._mean
 
 
+class EmpiricalNormalizationDict(nn.Module):
+    """Apply EmpiricalNormalization to each entry in a TensorDict (dictionary of tensors)."""
+
+    def __init__(self, shape_dict: dict[str, tuple[int]], eps=1e-2, until=None):
+        """
+        Args:
+            shape_dict: Dict mapping keys (e.g., "proprio") to tensor shapes (excluding batch dim)
+            eps: Stability constant
+            until: Optional limit to total number of samples for updating stats
+        """
+        super().__init__()
+        self.norms = nn.ModuleDict()
+        for key, shape in shape_dict.items():
+            self.norms[key] = EmpiricalNormalization(shape, eps=eps, until=until)
+
+    def forward(self, obs_dict: dict[str, torch.Tensor]):
+        """
+        Normalize a dict of tensors.
+        """
+        return {k: self.norms[k](v) if k in self.norms else v for k, v in obs_dict.items()}
+
+    @torch.jit.unused
+    def update(self, obs_dict: dict[str, torch.Tensor]):
+        """
+        Update the statistics for all tensors in the dict.
+        """
+        for k, norm in self.norms.items():
+            if k in obs_dict:
+                norm.update(obs_dict[k])
+
+    @torch.jit.unused
+    def inverse(self, normed_obs_dict: dict[str, torch.Tensor]):
+        """
+        Inverse normalization (denormalize).
+        """
+        return {k: self.norms[k].inverse(v) if k in self.norms else v for k, v in normed_obs_dict.items()}
+
+    @property
+    def mean(self):
+        return {k: self.norms[k].mean for k in self.norms}
+
+    @property
+    def std(self):
+        return {k: self.norms[k].std for k in self.norms}
+
 class EmpiricalDiscountedVariationNormalization(nn.Module):
     """Reward normalization from Pathak's large scale study on PPO.
 
