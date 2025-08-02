@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 
-from rsl_rl.networks import MLP, EmpiricalNormalizationDict, Depth  # custom net 
-
+from rsl_rl.networks import MLP, EmpiricalNormalization, EmpiricalNormalizationDict, Depth  # custom net 
+from tensordict import TensorDict
 class ActorCriticCustom(nn.Module):
     is_recurrent = True
 
@@ -38,7 +38,7 @@ class ActorCriticCustom(nn.Module):
         # get the observation dimensions
         self.obs_groups = obs_groups
         num_actor_obs = self.get_shape_dict(obs)
-        num_critic_obs = self.get_shape_dict(obs)
+        num_critic_obs = 26
         num_hiden_state = 192
 
         # actor
@@ -52,11 +52,11 @@ class ActorCriticCustom(nn.Module):
         print(f"Actor Net: {self.actor}")
 
         # critic
-        self.critic = Depth(num_critic_obs, 1)
+        self.critic = MLP(num_critic_obs, 1, critic_hidden_dims, activation)
         # critic observation normalization
         self.critic_obs_normalization = critic_obs_normalization
         if critic_obs_normalization:
-            self.critic_obs_normalizer = EmpiricalNormalizationDict(num_critic_obs)
+            self.critic_obs_normalizer = EmpiricalNormalization(num_critic_obs)
         else:
             self.critic_obs_normalizer = torch.nn.Identity()
         print(f"Critic Net: {self.critic}")
@@ -95,7 +95,11 @@ class ActorCriticCustom(nn.Module):
         return self.distribution.entropy().sum(dim=-1)
 
     def get_hidden_states(self):
-        return self.actor.hidden_states, self.critic.hidden_states
+
+        actor_hidden_states = self.actor.hidden_states
+        critic_hidden_states = torch.zeros_like(actor_hidden_states)
+        
+        return actor_hidden_states, critic_hidden_states
 
     def update_distribution(self, obs, hidden_states=None, masks=None):
         # compute mean
@@ -111,6 +115,7 @@ class ActorCriticCustom(nn.Module):
         self.distribution = Normal(mean, std)
 
     def act(self, obs, hidden_states=None, masks=None, **kwargs):
+        obs = self.get_actor_obs(obs)
         obs = self.actor_obs_normalizer(obs)
         self.update_distribution(obs, hidden_states, masks)
         return self.distribution.sample()
@@ -119,9 +124,20 @@ class ActorCriticCustom(nn.Module):
         obs = self.actor_obs_normalizer(obs)
         return self.actor(obs)
 
-    def evaluate(self, obs, hidden_states=None, masks=None, **kwargs):
+    def evaluate(self, obs, **kwargs):
+        obs = self.get_critic_obs(obs)
         obs = self.critic_obs_normalizer(obs)
-        return self.critic(obs, hidden_states=hidden_states, masks=masks)
+        return self.critic(obs)
+
+    def get_actor_obs(self, obs):
+        actor_obs = TensorDict({
+            "state": obs["state"], 
+            "depth": obs["depth"]}, batch_size=obs.shape[0]
+        )
+        return actor_obs
+
+    def get_critic_obs(self, obs):
+        return obs["privileged"]
 
     def get_actions_log_prob(self, actions):
         if self.noise_std_type == "scalar":
@@ -135,7 +151,7 @@ class ActorCriticCustom(nn.Module):
         return self.distribution.log_prob(actions).sum(dim=-1)
     
     def get_shape_dict(self, tensor_dict: dict[str, torch.Tensor]) -> dict[str, tuple[int]]:
-        return {k: tuple(v.shape[1:]) for k, v in tensor_dict.items()}
+        return {k: tuple(v.shape) for k, v in tensor_dict.items()}
 
     def update_normalization(self, obs):
         if self.actor_obs_normalization:
