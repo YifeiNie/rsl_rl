@@ -187,7 +187,7 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 
-from rsl_rl.networks import MLP, EmpiricalNormalization, EmpiricalNormalizationDict, Depth  # custom net 
+from rsl_rl.networks import MLP, EmpiricalNormalization, EmpiricalNormalizationDict, Actor_net, Critic_net  # custom net 
 from tensordict import TensorDict
 class ActorCriticCustom(nn.Module):
     is_recurrent = False
@@ -216,11 +216,11 @@ class ActorCriticCustom(nn.Module):
         # get the observation dimensions
         self.obs_groups = obs_groups
         num_actor_obs = self.get_shape_dict(obs)
-        num_critic_obs = 26
+        num_critic_obs = self.get_shape_dict(obs)
         num_hiden_state = 192
 
         # actor
-        self.actor = Depth(num_actor_obs, num_actions)
+        self.actor = Actor_net(num_actor_obs, num_actions)
         # actor observation normalization
         self.actor_obs_normalization = actor_obs_normalization
         if actor_obs_normalization:
@@ -230,11 +230,11 @@ class ActorCriticCustom(nn.Module):
         print(f"Actor Net: {self.actor}")
 
         # critic
-        self.critic = MLP(num_critic_obs, 1, critic_hidden_dims, activation)
+        self.critic = Critic_net(num_critic_obs, 1)
         # critic observation normalization
         self.critic_obs_normalization = critic_obs_normalization
         if critic_obs_normalization:
-            self.critic_obs_normalizer = EmpiricalNormalization(num_critic_obs)
+            self.critic_obs_normalizer = EmpiricalNormalizationDict(num_critic_obs)
         else:
             self.critic_obs_normalizer = torch.nn.Identity()
         print(f"Critic Net: {self.critic}")
@@ -308,7 +308,12 @@ class ActorCriticCustom(nn.Module):
         return actor_obs
 
     def get_critic_obs(self, obs):
-        return obs["privileged"]
+        actor_obs = TensorDict({
+            "state": obs["state"], 
+            "depth": obs["depth"],
+            "privileged": obs["privileged"]}, batch_size=obs.shape[0]
+        )
+        return actor_obs
 
     def get_actions_log_prob(self, actions):
         if self.noise_std_type == "scalar":
