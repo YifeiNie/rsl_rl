@@ -316,14 +316,6 @@ class ActorCriticCustom(nn.Module):
         return actor_obs
 
     def get_actions_log_prob(self, actions):
-        if self.noise_std_type == "scalar":
-            std = self.std.expand_as(actions)
-        elif self.noise_std_type == "log":
-            std = torch.exp(self.log_std).expand_as(actions)
-        else:
-            raise ValueError(f"Unknown standard deviation type: {self.noise_std_type}. Should be 'scalar' or 'log'")
-        # create distribution
-        self.distribution = Normal(actions, std)
         return self.distribution.log_prob(actions).sum(dim=-1)
     
     def get_shape_dict(self, tensor_dict: dict[str, torch.Tensor]) -> dict[str, tuple[int]]:
