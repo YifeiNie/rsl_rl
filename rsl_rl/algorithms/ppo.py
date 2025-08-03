@@ -176,6 +176,7 @@ class PPO:
         )
 
     def update(self):  # noqa: C901
+        mean_total_loss = 0
         mean_value_loss = 0
         mean_surrogate_loss = 0
         mean_entropy = 0
@@ -384,6 +385,7 @@ class PPO:
                 self.rnd_optimizer.step()
 
             # Store the losses
+            mean_total_loss += loss.item()
             mean_value_loss += value_loss.item()
             mean_surrogate_loss += surrogate_loss.item()
             mean_entropy += entropy_batch.mean().item()
@@ -396,6 +398,7 @@ class PPO:
 
         # -- For PPO
         num_updates = self.num_learning_epochs * self.num_mini_batches
+        mean_total_loss /= num_updates 
         mean_value_loss /= num_updates
         mean_surrogate_loss /= num_updates
         mean_entropy /= num_updates
@@ -410,6 +413,7 @@ class PPO:
 
         # construct the loss dictionary
         loss_dict = {
+            "total": mean_total_loss,
             "value_function": mean_value_loss,
             "surrogate": mean_surrogate_loss,
             "entropy": mean_entropy,
