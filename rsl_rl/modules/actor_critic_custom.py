@@ -303,7 +303,8 @@ class ActorCriticCustom(nn.Module):
     def get_actor_obs(self, obs):
         actor_obs = TensorDict({
             "state": obs["state"], 
-            "depth": obs["depth"]}, batch_size=obs.shape[0]
+            "depth": obs["depth"],
+            "privileged": obs["privileged"]}, batch_size=obs.shape[0]
         )
         return actor_obs
 
