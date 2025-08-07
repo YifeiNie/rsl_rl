@@ -242,9 +242,9 @@ class ActorCriticCustom(nn.Module):
         # Action noise
         self.noise_std_type = noise_std_type
         if self.noise_std_type == "scalar":
-            self.std = nn.Parameter(torch.tensor(init_noise_std) * torch.ones(num_actions))
+            self.std = nn.Parameter(init_noise_std * torch.ones(num_actions))
         elif self.noise_std_type == "log":
-            self.log_std = nn.Parameter(torch.log(torch.tensor(init_noise_std) * torch.ones(num_actions)))
+            self.log_std = nn.Parameter(torch.log(init_noise_std * torch.ones(num_actions)))
         else:
             raise ValueError(f"Unknown standard deviation type: {self.noise_std_type}. Should be 'scalar' or 'log'")
 
