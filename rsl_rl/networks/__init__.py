@@ -8,4 +8,3 @@
 from .memory import Memory
 from .mlp import MLP
 from .normalization import EmpiricalDiscountedVariationNormalization, EmpiricalNormalization, EmpiricalNormalizationDict
-from algorithms.feature_extract.depth_net import Actor_net, Critic_net
