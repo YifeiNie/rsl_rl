@@ -213,13 +213,13 @@ class RolloutStorage:
             first_traj = 0
             for i in range(num_mini_batches):
                 start = i * mini_batch_size
-                stop = (i + 1) * mini_batch_size
+                stop = (i + 1) * mini_batch_size    # start:stop是并行环境的索引，索引start:stop的环境采集的数据作为一个mini-batch
 
                 dones = self.dones.squeeze(-1)
                 last_was_done = torch.zeros_like(dones, dtype=torch.bool)
                 last_was_done[1:] = dones[:-1]
                 last_was_done[0] = True
-                trajectories_batch_size = torch.sum(last_was_done[:, start:stop])
+                trajectories_batch_size = torch.sum(last_was_done[:, start:stop])   # 当前start:stop个环境内产生的轨迹数量，一定大于等于stop-start
                 last_traj = first_traj + trajectories_batch_size
 
                 masks_batch = trajectory_masks[:, first_traj:last_traj]
@@ -227,7 +227,7 @@ class RolloutStorage:
                 target_values_batch = padded_values[:, first_traj:last_traj]
                 returns_batch = padded_returns[:, first_traj:last_traj]
 
-                actions_batch = self.actions[:, start:stop]
+                actions_batch = self.actions[:, start:stop]     # shape [T, mini_B, action_dim]
                 old_mu_batch = self.mu[:, start:stop]
                 old_sigma_batch = self.sigma[:, start:stop]
 

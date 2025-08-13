@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.distributions import Normal
 
 from rsl_rl.networks import MLP, EmpiricalNormalization, EmpiricalNormalizationDict  # custom net 
-from algorithms.feature_extract.cnn import Actor_net, Critic_net
+from algorithms.models.cnn import Actor_net, Critic_net
 
 from tensordict import TensorDict
 class ActorCriticCNN(nn.Module):

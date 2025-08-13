@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.distributions import Normal
 
 from rsl_rl.networks import MLP, EmpiricalNormalization, EmpiricalNormalizationDict  # custom net 
-from algorithms.feature_extract.rnn_cnn import Depth
+from algorithms.models.rnn_cnn import Depth
 
 from tensordict import TensorDict
 class ActorCriticRecurrentCNN(nn.Module):
